@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>云湖适配器配置</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mdui@1.0.2/dist/css/mdui.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/mdui@1.0.2/dist/js/mdui.min.js"></script>
+</head>
+<body class="mdui-container">
+    <div class="mdui-typo">
+        <h1>云湖适配器配置</h1>
+        <form method="post">
+            <div class="mdui-textfield">
+                <label class="mdui-textfield-label">启用适配器</label>
+                <label class="mdui-switch">
+                    <input type="checkbox" name="enabled" {% if config.enabled %}checked{% endif %}/>
+                    <i class="mdui-switch-icon"></i>
+                </label>
+            </div>
+            <div class="mdui-textfield">
+                <label class="mdui-textfield-label">云湖 Token</label>
+                <input class="mdui-textfield-input" type="text" name="token" value="{{ config.token }}"/>
+            </div>
+            <div class="mdui-textfield">
+                <label class="mdui-textfield-label">API 基地址</label>
+                <input class="mdui-textfield-input" type="text" name="base_url" value="{{ config.base_url }}"/>
+                <div class="mdui-textfield-helper">默认: https://chat-go.jwzhd.com/open-apis/v1</div>
+            </div>
+            <div class="mdui-textfield">
+                <label class="mdui-textfield-label">WebSocket 地址 (可选)</label>
+                <input class="mdui-textfield-input" type="text" name="websocket_url" value="{{ config.websocket_url }}"/>
+                <div class="mdui-textfield-helper">若云湖支持 WebSocket 事件，可填写，否则留空</div>
+            </div>
+            <div class="mdui-textfield">
+                <label class="mdui-textfield-label">消息回调地址</label>
+                <input class="mdui-textfield-input" type="text" readonly value="http://你的服务器IP:6185/yunhu/webhook"/>
+                <div class="mdui-textfield-helper">请将此地址填入云湖的消息订阅接口</div>
+            </div>
+            <button type="submit" class="mdui-btn mdui-btn-raised mdui-color-theme-accent">保存配置</button>
+            {% if saved %}
+                <div class="mdui-alert mdui-color-green mdui-m-t-2">配置已保存，插件将自动重载。</div>
+            {% endif %}
+        </form>
+    </div>
+</body>
+</html>
