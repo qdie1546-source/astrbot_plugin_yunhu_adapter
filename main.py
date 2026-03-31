@@ -6,8 +6,8 @@ from astrbot.api import logger
 @register(
     name="yunhu_test",
     author="星落云",
-    description="云湖SDK测试插件，验证云湖IM接口连通性",
-    version="1.0.1",
+    desc="云湖SDK测试插件，验证云湖IM接口连通性",
+    version="1.0.2",
     repo="https://github.com/qdie1546-source/astrbot_plugin_yunhu_test"
 )
 class YunhuTestPlugin(Star):
@@ -17,10 +17,8 @@ class YunhuTestPlugin(Star):
         self.client = None
 
     async def initialize(self):
-        """插件加载时尝试初始化 SDK"""
         try:
             from yunhu import YunHuClient
-            # 使用 token 初始化
             self.client = YunHuClient(
                 token=self.config.get("token", ""),
                 base_url=self.config.get("base_url", "https://api.yhchat.com/v1"),
@@ -34,19 +32,15 @@ class YunhuTestPlugin(Star):
 
     @filter.command("yunhu_test")
     async def test_send(self, event: AstrMessageEvent):
-        """测试发送消息指令：/yunhu_test 目标ID 消息内容"""
         parts = event.message_str.strip().split(maxsplit=2)
         if len(parts) < 3:
             yield event.plain_result("用法: /yunhu_test <目标ID> <消息内容>")
             return
-
         target_id = parts[1]
         text = parts[2]
-
         if self.client is None:
             yield event.plain_result("SDK 未初始化，请检查插件配置中的 token")
             return
-
         try:
             from yunhu import TextMessage
             resp = await self.client.send_message(chat_id=target_id, message=TextMessage(text=text))
