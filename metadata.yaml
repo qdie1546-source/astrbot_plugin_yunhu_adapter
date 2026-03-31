@@ -1,26 +1,9 @@
 name: yunhu_adapter
 display_name: 云湖IM适配器
-description: 将云湖机器人接入AstrBot，支持token认证和webhook接收。
+description: 将云湖机器人接入AstrBot，支持token认证和webhook/WebSocket接收消息。
 author: 星落云
-version: v1.0.5
+version: v1.0.6
 repo: https://github.com/qdie1546-source/astrbot_plugin_yunhu_adapter
 support_platforms:
   - yunhu
 astrbot_version: ">=4.0"
-# 定义平台配置项，这些将在 WebUI 的平台管理界面中显示
-platform_config:
-  - key: token
-    type: string
-    label: 云湖 Token
-    required: true
-    placeholder: 输入你的云湖机器人 token
-  - key: base_url
-    type: string
-    label: API 基地址
-    default: https://chat-go.jwzhd.com/open-apis/v1
-    required: true
-  - key: websocket_url
-    type: string
-    label: WebSocket 地址（可选）
-    placeholder: wss://ws.yhchat.com/v1
-    required: false
