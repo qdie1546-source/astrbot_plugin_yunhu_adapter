@@ -2,16 +2,12 @@ name: yunhu_test
 display_name: 云湖SDK测试插件
 description: 验证云湖IM SDK安装和API连通性
 author: 星落云
-version: v1.0.0
+version: 1.0.1
 repo: https://github.com/qdie1546-source/astrbot_plugin_yunhu_test
 config:
-  - key: app_id
+  - key: token
     type: string
-    label: 云湖App ID
-    required: true
-  - key: app_secret
-    type: string
-    label: 云湖App Secret
+    label: dddde322530446a68f91a284244204e1
     required: true
   - key: base_url
     type: string
