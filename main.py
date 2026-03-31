@@ -1,3 +1,5 @@
+import os
+import json
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 from .platform import YunHuPlatform
@@ -6,17 +8,27 @@ from .platform import YunHuPlatform
     name="yunhu_adapter",
     author="星落云",
     desc="云湖IM平台适配器（使用token查询参数）",
-    version="1.0.0",
+    version="v1.0.4",
     repo="https://github.com/qdie1546-source/astrbot_plugin_yunhu_adapter"
 )
 class YunHuAdapter(Star):
     def __init__(self, context: Context):
         super().__init__(context)
         self.platform = None
+        self.config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+
+    def _get_config(self):
+        """从 config.json 读取配置"""
+        if os.path.exists(self.config_path):
+            try:
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.error(f"读取配置文件失败: {e}")
+        return {}
 
     async def initialize(self):
-        # 获取配置（AstrBot 4.22.0 使用 context.get_plugin_config）
-        config = self.context.get_plugin_config() or {}
+        config = self._get_config()
         enabled = config.get('enabled', False)
         if not enabled:
             logger.info("云湖适配器未启用")
@@ -24,7 +36,7 @@ class YunHuAdapter(Star):
 
         token = config.get('token', '')
         base_url = config.get('base_url', 'https://chat-go.jwzhd.com/open-apis/v1')
-        ws_url = config.get('websocket_url', None)  # 可选
+        ws_url = config.get('websocket_url', None)
 
         if not token:
             logger.error("云湖适配器已启用但未提供 token，请配置")
