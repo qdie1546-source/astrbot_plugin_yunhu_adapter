@@ -7,7 +7,7 @@ from astrbot.api import logger
     name="yunhu_test",
     author="星落云",
     description="云湖SDK测试插件，验证云湖IM接口连通性",
-    version="1.0.0",
+    version="1.0.1",
     repo="https://github.com/qdie1546-source/astrbot_plugin_yunhu_test"
 )
 class YunhuTestPlugin(Star):
@@ -20,9 +20,9 @@ class YunhuTestPlugin(Star):
         """插件加载时尝试初始化 SDK"""
         try:
             from yunhu import YunHuClient
+            # 使用 token 初始化
             self.client = YunHuClient(
-                app_id=self.config.get("app_id", ""),
-                app_secret=self.config.get("app_secret", ""),
+                token=self.config.get("token", ""),
                 base_url=self.config.get("base_url", "https://api.yhchat.com/v1"),
                 websocket_url=self.config.get("websocket_url", "wss://ws.yhchat.com/v1")
             )
@@ -44,7 +44,7 @@ class YunhuTestPlugin(Star):
         text = parts[2]
 
         if self.client is None:
-            yield event.plain_result("SDK 未初始化，请检查插件配置中的 app_id 和 app_secret")
+            yield event.plain_result("SDK 未初始化，请检查插件配置中的 token")
             return
 
         try:
