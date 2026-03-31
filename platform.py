@@ -10,19 +10,48 @@ class YunHuPlatform(Platform):
     def __init__(self, context):
         super().__init__(context)
         self.client = None
-        self.config = {}  # 将在 run 时从平台配置中获取
+        self.config = {}
         self._running = False
         self._ws_task = None
 
-    async def run(self, config: Dict[str, Any]):
-        """
-        启动平台实例，由 AstrBot 在用户添加平台并启用后调用。
-        config 包含用户在 WebUI 中填写的配置项。
-        """
-        self.config = config
-        token = config.get('token', '')
-        base_url = config.get('base_url', 'https://chat-go.jwzhd.com/open-apis/v1')
-        ws_url = config.get('websocket_url', None)
+    def meta(self) -> dict:
+        """返回平台元数据，用于 WebUI 显示和配置"""
+        return {
+            "name": "yunhu",
+            "display_name": "云湖IM",
+            "description": "云湖官方机器人适配器，支持 token 认证和 webhook/WebSocket 消息接收",
+            "config_schema": [
+                {
+                    "key": "token",
+                    "label": "云湖 Token",
+                    "type": "string",
+                    "required": True,
+                    "placeholder": "输入云湖机器人 token"
+                },
+                {
+                    "key": "base_url",
+                    "label": "API 基地址",
+                    "type": "string",
+                    "default": "https://chat-go.jwzhd.com/open-apis/v1",
+                    "required": True
+                },
+                {
+                    "key": "websocket_url",
+                    "label": "WebSocket 地址（可选）",
+                    "type": "string",
+                    "required": False,
+                    "placeholder": "wss://ws.yhchat.com/v1",
+                    "help": "如果云湖支持 WebSocket 事件流，可填写此地址，否则留空使用 webhook 接收消息"
+                }
+            ]
+        }
+
+    async def run(self):
+        """启动平台实例（由 AstrBot 在用户启用后调用）"""
+        # 配置已经通过 self.config 注入（由 AstrBot 设置）
+        token = self.config.get('token', '')
+        base_url = self.config.get('base_url', 'https://chat-go.jwzhd.com/open-apis/v1')
+        ws_url = self.config.get('websocket_url', None)
 
         if not token:
             logger.error("云湖平台启动失败：未提供 token")
@@ -33,7 +62,6 @@ class YunHuPlatform(Platform):
             await self.client.start()
             self._running = True
 
-            # 如果有 WebSocket 事件流，则启动
             if ws_url:
                 self.client.on('message', self._on_ws_message)
                 self._ws_task = asyncio.create_task(self.client.start_event_stream())
@@ -52,7 +80,7 @@ class YunHuPlatform(Platform):
             await self.client.close()
 
     async def send_message(self, event: AstrMessageEvent):
-        """发送消息"""
+        """发送消息（由 AstrBot 调用）"""
         if not self.client:
             logger.warning("云湖客户端未初始化，无法发送消息")
             return
@@ -84,18 +112,17 @@ class YunHuPlatform(Platform):
     # ========== WebSocket 事件处理 ==========
     async def _on_ws_message(self, event):
         """处理 WebSocket 接收到的消息"""
-        # 将云湖消息转换为 AstrMessageEvent 并分发
-        # 根据实际云湖事件格式编写
-        pass
+        # 根据实际云湖事件格式转换为 AstrMessageEvent 并分发
+        # 这里需要根据云湖的 WebSocket 消息结构实现
+        logger.debug("收到 WebSocket 消息: %s", event)
 
     # ========== Webhook 消息接收（由外部路由调用）==========
     async def process_webhook(self, data: Dict[str, Any]):
         """
         处理通过 HTTP webhook 推送的消息。
-        此方法可由外部 HTTP 路由调用（如 /yunhu/webhook），
-        您需要在 AstrBot 的 WebUI 中添加自定义路由或使用插件提供的端点。
+        您可以在 AstrBot 中注册一个路由（如 /yunhu/webhook）来调用此方法。
         """
-        # 根据实际推送格式解析，构造 AstrMessageEvent
+        # 根据实际推送格式解析，这里是一个示例
         try:
             msg_data = data.get('message', {})
             chat_id = msg_data.get('chat_id')
