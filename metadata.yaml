@@ -1,19 +1,9 @@
-name: yunhu_test
-display_name: 云湖SDK测试插件
-description: 验证云湖IM SDK安装和API连通性
+name: yunhu_adapter
+display_name: 云湖IM适配器
+description: 将云湖机器人接入AstrBot，支持token查询参数认证，提供WebUI配置和webhook接收。
 author: 星落云
-version: 1.0.2
-repo: https://github.com/qdie1546-source/astrbot_plugin_yunhu_test
-config:
-  - key: token
-    type: string
-    label: dddde322530446a68f91a284244204e1
-    required: true
-  - key: base_url
-    type: string
-    label: API地址
-    default: https://api.yhchat.com/v1
-  - key: websocket_url
-    type: string
-    label: WebSocket地址
-    default: wss://ws.yhchat.com/v1
+version: v1.0.3
+repo: https://github.com/qdie1546-source/astrbot_plugin_yunhu_adapter
+support_platforms:
+  - yunhu
+astrbot_version: ">=4.0"
