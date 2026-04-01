@@ -2,7 +2,7 @@ name: yunhu_adapter
 display_name: 云湖IM适配器
 description: 将云湖机器人接入AstrBot，支持token认证和webhook/WebSocket接收消息。
 author: 星落云
-version: v1.0.9
+version: v2.0.0
 repo: https://github.com/qdie1546-source/astrbot_plugin_yunhu_adapter
 support_platforms:
   - yunhu
