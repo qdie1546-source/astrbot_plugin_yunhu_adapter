@@ -3,22 +3,61 @@ import json
 import asyncio
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
-from astrbot.core.webui import routes
-from astrbot.core.webui.utils import json_response, render_template
-from astrbot.core.plugin.manager import plugin_manager
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.message_components import Plain
 from yunhu import YunHuClient
+from aiohttp import web
+import threading
 
-# 插件目录
 PLUGIN_DIR = os.path.dirname(__file__)
 CONFIG_FILE = os.path.join(PLUGIN_DIR, "config.json")
+HTML_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>云湖适配器配置</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mdui@1.0.2/dist/css/mdui.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/mdui@1.0.2/dist/js/mdui.min.js"></script>
+</head>
+<body class="mdui-container">
+    <div class="mdui-typo">
+        <h1>云湖适配器配置</h1>
+        <form method="post" action="/config">
+            <div class="mdui-textfield">
+                <label class="mdui-textfield-label">启用适配器</label>
+                <label class="mdui-switch">
+                    <input type="checkbox" name="enabled" %s/>
+                    <i class="mdui-switch-icon"></i>
+                </label>
+            </div>
+            <div class="mdui-textfield">
+                <label class="mdui-textfield-label">云湖 Token</label>
+                <input class="mdui-textfield-input" type="text" name="token" value="%s"/>
+            </div>
+            <div class="mdui-textfield">
+                <label class="mdui-textfield-label">API 基地址</label>
+                <input class="mdui-textfield-input" type="text" name="base_url" value="%s"/>
+                <div class="mdui-textfield-helper">默认: https://chat-go.jwzhd.com/open-apis/v1</div>
+            </div>
+            <div class="mdui-textfield">
+                <label class="mdui-textfield-label">消息回调地址</label>
+                <input class="mdui-textfield-input" type="text" readonly value="http://你的服务器IP:8876/webhook"/>
+                <div class="mdui-textfield-helper">请将此地址填入云湖的消息订阅接口</div>
+            </div>
+            <button type="submit" class="mdui-btn mdui-btn-raised mdui-color-theme-accent">保存配置</button>
+            %s
+        </form>
+    </div>
+</body>
+</html>
+'''
 
 def get_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    return {}
+    return {'enabled': False, 'token': '', 'base_url': 'https://chat-go.jwzhd.com/open-apis/v1'}
 
 def save_config(config):
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -27,69 +66,101 @@ def save_config(config):
 @register(
     name="yunhu_adapter",
     author="星落云",
-    desc="云湖IM适配器（非平台模式）",
-    version="v2.0.0",
+    desc="云湖IM适配器（独立HTTP服务）",
+    version="3.0.0",
     repo="https://github.com/qdie1546-source/astrbot_plugin_yunhu_adapter"
 )
 class YunHuAdapter(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-        self.client = None
         self.config = get_config()
-        self._running = False
+        self.client = None
+        self._http_server = None
+        self._server_task = None
 
     async def initialize(self):
-        # 启动 HTTP 路由（配置页面和 webhook）
-        self._register_routes()
-        # 初始化客户端（如果有 token）
+        # 初始化客户端
         await self._init_client()
-        logger.info("云湖适配器已启动（非平台模式）")
+        # 启动独立 HTTP 服务器（端口 8876）
+        self._server_task = asyncio.create_task(self._run_http_server())
+        logger.info("云湖适配器已启动（独立 HTTP 服务在端口 8876）")
 
     async def _init_client(self):
-        token = self.config.get('token', '')
-        base_url = self.config.get('base_url', 'https://chat-go.jwzhd.com/open-apis/v1')
-        if token and not self.client:
-            self.client = YunHuClient(token=token, base_url=base_url)
-            await self.client.start()
-            logger.info("云湖客户端已初始化")
-
-    def _register_routes(self):
-        """注册 HTTP 路由（配置页面 + webhook）"""
-        from astrbot.core.webui import app
-
-        @app.route('/yunhu/config', methods=['GET', 'POST'])
-        async def yunhu_config(request):
-            if request.method == 'POST':
-                data = await request.post()
-                new_config = {
-                    'enabled': data.get('enabled') == 'on',
-                    'token': data.get('token', ''),
-                    'base_url': data.get('base_url', 'https://chat-go.jwzhd.com/open-apis/v1')
-                }
-                save_config(new_config)
-                self.config = new_config
-                # 重新初始化客户端
+        if self.config.get('enabled') and self.config.get('token'):
+            try:
                 if self.client:
                     await self.client.close()
-                    self.client = None
-                await self._init_client()
-                return render_template('yunhu_config.html', saved=True, config=new_config)
-            return render_template('yunhu_config.html', config=self.config)
+                self.client = YunHuClient(
+                    token=self.config['token'],
+                    base_url=self.config.get('base_url', 'https://chat-go.jwzhd.com/open-apis/v1')
+                )
+                await self.client.start()
+                logger.info("云湖客户端已初始化")
+            except Exception as e:
+                logger.exception("初始化云湖客户端失败")
+                self.client = None
+        else:
+            self.client = None
 
-        @app.route('/yunhu/webhook', methods=['POST'])
-        async def yunhu_webhook(request):
-            """接收云湖推送的消息"""
-            try:
-                data = await request.json()
-            except:
-                data = await request.post()
-            # 处理消息
-            await self._process_webhook(data)
-            return json_response({"code": 0, "msg": "ok"})
+    async def _run_http_server(self):
+        """启动 aiohttp 服务器"""
+        app = web.Application()
+        app.router.add_get('/', self.handle_config_page)
+        app.router.add_post('/config', self.handle_config_save)
+        app.router.add_post('/webhook', self.handle_webhook)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', 8876)
+        await site.start()
+        logger.info("云湖配置服务已启动: http://0.0.0.0:8876")
+        # 保持运行
+        await asyncio.Event().wait()
+
+    async def handle_config_page(self, request):
+        """显示配置页面"""
+        config = get_config()
+        enabled_checked = 'checked' if config.get('enabled') else ''
+        token_val = config.get('token', '')
+        base_url_val = config.get('base_url', 'https://chat-go.jwzhd.com/open-apis/v1')
+        saved_msg = ''
+        return web.Response(
+            text=HTML_TEMPLATE % (enabled_checked, token_val, base_url_val, saved_msg),
+            content_type='text/html'
+        )
+
+    async def handle_config_save(self, request):
+        """保存配置"""
+        data = await request.post()
+        new_config = {
+            'enabled': data.get('enabled') == 'on',
+            'token': data.get('token', ''),
+            'base_url': data.get('base_url', 'https://chat-go.jwzhd.com/open-apis/v1')
+        }
+        save_config(new_config)
+        self.config = new_config
+        # 重新初始化客户端
+        await self._init_client()
+        # 重新渲染页面，显示成功信息
+        enabled_checked = 'checked' if new_config['enabled'] else ''
+        token_val = new_config['token']
+        base_url_val = new_config['base_url']
+        saved_msg = '<div class="mdui-alert mdui-color-green mdui-m-t-2">配置已保存，插件已重载。</div>'
+        return web.Response(
+            text=HTML_TEMPLATE % (enabled_checked, token_val, base_url_val, saved_msg),
+            content_type='text/html'
+        )
+
+    async def handle_webhook(self, request):
+        """接收云湖推送的消息"""
+        try:
+            data = await request.json()
+        except:
+            data = await request.post()
+        await self._process_webhook(data)
+        return web.json_response({"code": 0, "msg": "ok"})
 
     async def _process_webhook(self, data: dict):
         """将云湖消息转换为 AstrBot 消息事件并分发"""
-        # 根据实际云湖推送格式调整
         try:
             msg_data = data.get('message', {})
             chat_id = msg_data.get('chat_id')
@@ -100,7 +171,6 @@ class YunHuAdapter(Star):
                 logger.debug("webhook消息缺少必要字段")
                 return
 
-            # 构造 AstrBot 消息对象
             from astrbot.api.platform import AstrMessageEvent, AstrBotMessage, MessageMember
             astr_msg = AstrBotMessage()
             astr_msg.type = "group" if chat_id != sender_id else "private"
@@ -116,9 +186,8 @@ class YunHuAdapter(Star):
             astr_event = AstrMessageEvent(
                 platform_name="yunhu",
                 message_obj=astr_msg,
-                platform=None  # 非平台模式，platform 为 None
+                platform=None
             )
-            # 分发到 AstrBot 消息处理链
             await self.context.message_dispatcher.dispatch(astr_event)
         except Exception as e:
             logger.exception("处理 webhook 消息失败")
@@ -142,3 +211,5 @@ class YunHuAdapter(Star):
     async def terminate(self):
         if self.client:
             await self.client.close()
+        if self._server_task:
+            self._server_task.cancel()
