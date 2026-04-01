@@ -6,7 +6,7 @@ from .platform import YunHuPlatform
     name="yunhu_adapter",
     author="星落云",
     desc="云湖IM平台适配器",
-    version="1.0.8",
+    version="v1.0.8",
     repo="https://github.com/qdie1546-source/astrbot_plugin_yunhu_adapter"
 )
 class YunHuAdapter(Star):
