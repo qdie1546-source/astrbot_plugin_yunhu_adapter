@@ -1,2 +1,2 @@
-# 云湖SDK（从GitHub安装）
 git+https://github.com/qdie1546-source/astrbot_plugin_yunhu_adaptersdk.git
+aiohttp>=3.8.0
