@@ -6,7 +6,7 @@ from .platform import YunHuPlatform
     name="yunhu_adapter",
     author="星落云",
     desc="云湖IM平台适配器",
-    version="v1.0.8",
+    version="v1.0.9",
     repo="https://github.com/qdie1546-source/astrbot_plugin_yunhu_adapter"
 )
 class YunHuAdapter(Star):
@@ -14,9 +14,20 @@ class YunHuAdapter(Star):
         super().__init__(context)
 
     async def initialize(self):
-        # 注册平台类，由框架负责实例化并传入正确的参数
-        await self.context.platform_manager.register_platform(YunHuPlatform)
-        logger.info("云湖适配器已注册，请在 WebUI 平台管理中配置并启用")
+        # 尝试多种方法注册平台
+        platform_manager = self.context.platform_manager
+        try:
+            # 尝试新方法名 add_platform
+            if hasattr(platform_manager, 'add_platform'):
+                await platform_manager.add_platform(YunHuPlatform)
+                logger.info("云湖平台已通过 add_platform 注册")
+            elif hasattr(platform_manager, 'register_platform'):
+                await platform_manager.register_platform(YunHuPlatform)
+                logger.info("云湖平台已通过 register_platform 注册")
+            else:
+                logger.error("PlatformManager 没有可用的注册方法，请检查 AstrBot 版本")
+        except Exception as e:
+            logger.exception(f"注册平台时出错: {e}")
 
     async def terminate(self):
         pass
